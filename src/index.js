@@ -16,29 +16,23 @@ class Board extends React.Component {
             <Square
                 value={this.props.squares[i]}
                 onClick={() => this.props.onClick(i)}
+                key={i.toString()}
             />
         );
     }
 
     render() {
+        const rows = [];
+        for (let i = 0; i < 3; i++) {
+            const squares = [];
+            for (let j = 0; j < 3; j++) {
+                squares.push(this.renderSquare((i * 3) + j));
+            }
+            rows.push(<div key={i.toString()} className="board-row">{squares}</div>)
+        }
+
         return (
-            <div>
-                <div className="board-row">
-                    {this.renderSquare(0)}
-                    {this.renderSquare(1)}
-                    {this.renderSquare(2)}
-                </div>
-                <div className="board-row">
-                    {this.renderSquare(3)}
-                    {this.renderSquare(4)}
-                    {this.renderSquare(5)}
-                </div>
-                <div className="board-row">
-                    {this.renderSquare(6)}
-                    {this.renderSquare(7)}
-                    {this.renderSquare(8)}
-                </div>
-            </div>
+            <div>{rows}</div>
         );
     }
 }
@@ -51,10 +45,14 @@ class Game extends React.Component {
                 squares: Array(9).fill(null),
                 row: null,
                 col: null,
+                player: null,
             }],
             stepNumber: 0,
             xIsNext: true,
+            historyReversed: false,
         }
+
+        this.handleHistoryInput = this.handleHistoryInput.bind(this);
     }
 
     handleClick(i) {
@@ -70,6 +68,7 @@ class Game extends React.Component {
                 squares: squares,
                 row: Math.floor(i / 3) + 1,
                 col: this.getCol(i),
+                player: squares[i],
             }]),
             stepNumber: history.length,
             xIsNext: !this.state.xIsNext,
@@ -89,27 +88,42 @@ class Game extends React.Component {
     jumpTo(step) {
         this.setState({
             stepNumber: step,
-            xIsNext: this.getNextFromStep(step),
-        })
+            xIsNext: this.xNext(step),
+        });
     }
 
-    getNextFromStep(step) {
-        return (step % 2) === 0
+    xNext(step) {
+        return (step % 2) === 0;
+    }
+
+    handleHistoryInput(_) {
+        this.setState({
+            historyReversed: !this.state.historyReversed,
+        });
     }
 
     render() {
-        const history = this.state.history;
+        let history = this.state.history;
+        let rev = this.state.historyReversed;
+        if (rev) {
+            history = history.slice().reverse()
+        }
         const current = history[this.state.stepNumber];
         const winner = calculateWinner(current.squares);
-
         const moves = history.map((step, move) => {
-            const player = this.getNextFromStep(move) ? 'O' : 'X'
-            const desc = move ?
-                'Go to move #' + move + ' (' + player + ' at Row: ' + step.row + ', Col: ' + step.col + ')' :
-                'Go to game start';
+            let desc;
+            if ((rev && move === history.length - 1) || (!rev && move === 0)) {
+                desc = 'Go to game start';
+            } else {
+                desc = 'Go to move #' + move + ' (' + step.player + ' at Row: ' + step.row + ', Col: ' + step.col + ')'
+            }
             return (
-                <li key={move}>
-                    <button onClick={() => this.jumpTo(move)}>{desc}</button>
+                <li key={desc}>
+                    <button
+                        style={{fontWeight: (this.state.stepNumber === move) ? 'bold' : 'normal'}}
+                        onClick={() => this.jumpTo(move)}>
+                        {desc}
+                    </button>
                 </li>
             );
         });
@@ -131,7 +145,15 @@ class Game extends React.Component {
                 </div>
                 <div className="game-info">
                     <div>{status}</div>
-                    <ol>{moves}</ol>
+                    <div>
+                        <input
+                            name="historyDirection"
+                            type="checkbox"
+                            checked={this.state.historyReversed}
+                            onChange={this.handleHistoryInput}/>
+                        <label>Reverse History Order</label>
+                    </div>
+                    <ol reversed={this.state.historyReversed}>{moves}</ol>
                 </div>
             </div>
         );
